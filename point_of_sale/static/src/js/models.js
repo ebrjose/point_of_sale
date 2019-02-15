@@ -6,6 +6,7 @@ var BarcodeParser = require('barcodes.BarcodeParser');
 var PosDB = require('point_of_sale.DB');
 var devices = require('point_of_sale.devices');
 var concurrency = require('web.concurrency');
+var config = require('web.config');
 var core = require('web.core');
 var field_utils = require('web.field_utils');
 var rpc = require('web.rpc');
@@ -22,12 +23,12 @@ var round_pr = utils.round_precision;
 var exports = {};
 
 // The PosModel contains the Point Of Sale's representation of the backend.
-// Since the PoS must work in standalone ( Without connection to the server ) 
-// it must contains a representation of the server's PoS backend. 
+// Since the PoS must work in standalone ( Without connection to the server )
+// it must contains a representation of the server's PoS backend.
 // (taxes, product list, configuration options, etc.)  this representation
-// is fetched and stored by the PosModel at the initialisation. 
-// this is done asynchronously, a ready deferred alows the GUI to wait interactively 
-// for the loading to be completed 
+// is fetched and stored by the PosModel at the initialisation.
+// this is done asynchronously, a ready deferred alows the GUI to wait interactively
+// for the loading to be completed
 // There is a single instance of the PosModel for each Front-End instance, it is usually called
 // 'pos' and is available to all widgets extending PosWidget.
 
@@ -44,7 +45,7 @@ exports.PosModel = Backbone.Model.extend({
 
         this.proxy_queue = new devices.JobQueue();           // used to prevent parallels communications to the proxy
         this.db = new PosDB();                       // a local database used to search trough products and categories & store pending orders
-        this.debug = core.debug; //debug mode
+        this.debug = config.debug; //debug mode
 
         // Business data; loaded from the server at launch
         this.company_logo = null;
@@ -63,6 +64,7 @@ exports.PosModel = Backbone.Model.extend({
         this.units_by_id = {};
         this.default_pricelist = null;
         this.order_sequence = 1;
+        this.dosificacion = null;
         window.posmodel = this;
 
         // these dynamic attributes can be watched for change by other models or widgets
@@ -88,7 +90,7 @@ exports.PosModel = Backbone.Model.extend({
 
         // We fetch the backend data on the server asynchronously. this is done only when the pos user interface is launched,
         // Any change on this data made on the server is thus not reflected on the point of sale until it is relaunched.
-        // when all the data has loaded, we compute some stuff, and declare the Pos ready to be used. 
+        // when all the data has loaded, we compute some stuff, and declare the Pos ready to be used.
         this.ready = this.load_server_data().then(function(){
             return self.after_load_server_data();
         });
@@ -117,7 +119,7 @@ exports.PosModel = Backbone.Model.extend({
         var self = this;
         var  done = new $.Deferred();
         this.barcode_reader.disconnect_from_proxy();
-        this.chrome.loading_message(_t('Connecting to the PosBox'),0);
+        this.chrome.loading_message(_t('Connecting to the IoT Box'),0);
         this.chrome.loading_skip(function(){
                 self.proxy.stop_searching();
             });
@@ -126,21 +128,13 @@ exports.PosModel = Backbone.Model.extend({
                 progress: function(prog){
                     self.chrome.loading_progress(prog);
                 },
-            }).then(
-                function(){
-                        if(self.config.iface_scan_via_proxy){
-                            self.barcode_reader.connect_to_proxy();
-                        }
-                        done.resolve();
-                },
-                function(statusText, url){
-                        if (statusText == 'error' && window.location.protocol == 'https:') {
-                            var error = {message: 'TLSError', url: url};
-                            self.chrome.loading_error(error);
-                        } else {
-                            done.resolve();
-                        }
-                });
+            }).then(function(){
+                if(self.config.iface_scan_via_proxy){
+                    self.barcode_reader.connect_to_proxy();
+                }
+            }).always(function(){
+                done.resolve();
+            });
         return done;
     },
 
@@ -179,7 +173,7 @@ exports.PosModel = Backbone.Model.extend({
             }
         },
     },{
-        model:  'product.uom',
+        model:  'uom.uom',
         fields: [],
         domain: null,
         context: function(self){ return { active_test: false }; },
@@ -460,7 +454,15 @@ exports.PosModel = Backbone.Model.extend({
                 });
             });
         }
-    },  {
+    },  /*{
+        // TRAEMOS EL MODELO DE DOSIFICACION
+        model: 'pos.dosificacion',
+        fields: ['nro_autorizacion', 'llave', 'fec_lemision', 'estado'],
+        loaded: function(self, dosificacion) {
+            //console.log(dosificacion);
+        }
+    }, */
+    {
         label: 'fonts',
         loaded: function(){
             var fonts_loaded = new $.Deferred();
@@ -627,6 +629,27 @@ exports.PosModel = Backbone.Model.extend({
         return def;
     },
 
+    // get order from server,  returns order
+    order_from_server: function(order_id) {
+        var self = this
+        var def = new $.Deferred();
+
+        rpc.query({
+            model: 'pos.order',
+            method: 'get_order',
+            args: [order_id],
+        }, {
+            timeout : 3000,
+            shadow: false
+        }).then(function(order) {
+            def.resolve(order);
+        }).fail(function(type, error) {
+            console.error('Failed to get order:', order_id)
+        })
+
+        return def;
+    },
+
     // this is called when an order is removed from the order collection. It ensures that there is always an existing
     // order and a valid selected order
     on_removed_order: function(removed_order,index,reason){
@@ -703,6 +726,7 @@ exports.PosModel = Backbone.Model.extend({
     },
 
     // return the current order
+    // pos.get_order()
     get_order: function(){
         return this.get('selectedOrder');
     },
@@ -769,9 +793,9 @@ exports.PosModel = Backbone.Model.extend({
         var order = this.get_order();
         var rendered_html = this.config.customer_facing_display_html;
 
-        // If we're using an external device like the POSBox, we
+        // If we're using an external device like the IoT Box, we
         // cannot get /web/image?model=product.product because the
-        // POSBox is not logged in and thus doesn't have the access
+        // IoT Box is not logged in and thus doesn't have the access
         // rights to access product.product. So instead we'll base64
         // encode it and embed it in the HTML.
         var get_image_deferreds = [];
@@ -880,6 +904,10 @@ exports.PosModel = Backbone.Model.extend({
             // the client will believe it wasn't successfully sent, and very bad
             // things will happen as a duplicate will be sent next time
             // so we must make sure the server detects and ignores duplicated orders
+            //
+
+
+
 
             var transfer = self._flush_orders([self.db.get_order(order_id)], {timeout:30000, to_invoice:true});
 
@@ -889,29 +917,22 @@ exports.PosModel = Backbone.Model.extend({
             });
 
             // on success, get the order id generated by the server
-            transfer.pipe(function(order_server_id){
-
+            transfer.pipe(function(order_server_id) {
                 // generate the pdf and download it
-                if (order_server_id.length) {
-                    self.chrome.do_action('point_of_sale.pos_invoice_report',{additional_context:{
+                self.chrome.do_action('point_of_sale.pos_invoice_report', {
+                    additional_context:{
                         active_ids:order_server_id,
-                    }}).done(function () {
-                        invoiced.resolve();
-                        done.resolve();
+                    }
+                }).done(function () {
+                    // TREAEMOS LA ORDEN DEL SERVIDOR
+                    self.order_from_server(order_server_id).done(function(order) {
+                        invoiced.resolve(order);
                     });
-                } else {
-                    // The order has been pushed separately in batch when
-                    // the connection came back.
-                    // The user has to go to the backend to print the invoice
-                    invoiced.reject({code:401, message:'Backend Invoice', data:{order: order}});
-                    done.reject();
-                }
+                    done.resolve();
+                });
             });
-
             return done;
-
         });
-
         return invoiced;
     },
 
@@ -1168,7 +1189,7 @@ exports.load_fields = function(model_name, fields) {
 
 // Loads openerp models at the point of sale startup.
 // load_models take an array of model loader declarations.
-// - The models will be loaded in the array order. 
+// - The models will be loaded in the array order.
 // - If no openerp model name is provided, no server data
 //   will be loaded, but the system can be used to preprocess
 //   data before load.
@@ -1184,9 +1205,9 @@ exports.load_fields = function(model_name, fields) {
 // models: [{
 //  model: [string] the name of the openerp model to load.
 //  label: [string] The label displayed during load.
-//  fields: [[string]|function] the list of fields to be loaded. 
+//  fields: [[string]|function] the list of fields to be loaded.
 //          Empty Array / Null loads all fields.
-//  order:  [[string]|function] the models will be ordered by 
+//  order:  [[string]|function] the models will be ordered by
 //          the provided fields
 //  domain: [domain|function] the domain that determines what
 //          models need to be loaded. Null loads everything
@@ -1195,7 +1216,7 @@ exports.load_fields = function(model_name, fields) {
 //  context: [Dict|function] the openerp context for the model read
 //  condition: [function] do not load the models if it evaluates to
 //             false.
-//  loaded: [function(self,model)] this function is called once the 
+//  loaded: [function(self,model)] this function is called once the
 //          models have been loaded, with the data as second argument
 //          if the function returns a deferred, the next model will
 //          wait until it resolves before loading.
@@ -1327,7 +1348,7 @@ exports.Product = Backbone.Model.extend({
 var orderline_id = 1;
 
 // An orderline represent one element of the content of a client's shopping cart.
-// An orderline contains a product, its quantity, its price, discount. etc. 
+// An orderline contains a product, its quantity, its price, discount. etc.
 // An Order contains zero or more Orderlines.
 exports.Orderline = Backbone.Model.extend({
     initialize: function(attr,options){
@@ -1524,7 +1545,6 @@ exports.Orderline = Backbone.Model.extend({
     // when we add an new orderline we want to merge it with the last line to see reduce the number of items
     // in the orderline. This returns true if it makes sense to merge the two
     can_be_merged_with: function(orderline){
-        var price = parseFloat(round_di(this.price || 0, this.pos.dp['Product Price']).toFixed(this.pos.dp['Product Price']));
         if( this.get_product().id !== orderline.get_product().id){    //only orderline of the same product can be merged
             return false;
         }else if(!this.get_unit() || !this.get_unit().is_pos_groupable){
@@ -1533,8 +1553,7 @@ exports.Orderline = Backbone.Model.extend({
             return false;
         }else if(this.get_discount() > 0){             // we don't merge discounted orderlines
             return false;
-        }else if(!utils.float_is_zero(price - orderline.get_product().get_price(orderline.order.pricelist, this.get_quantity()),
-                    this.pos.currency.decimals)){
+        }else if(this.price !== orderline.get_product().get_price(orderline.order.pricelist, this.get_quantity())){
             return false;
         }else if(this.product.tracking == 'lot') {
             return false;
@@ -1556,6 +1575,8 @@ exports.Orderline = Backbone.Model.extend({
         return {
             qty: this.get_quantity(),
             price_unit: this.get_unit_price(),
+            price_subtotal: this.get_price_without_tax(),
+            price_subtotal_incl: this.get_price_with_tax(),
             discount: this.get_discount(),
             product_id: this.get_product().id,
             tax_ids: [[6, false, _.map(this.get_applicable_taxes(), function(tax){ return tax.id; })]],
@@ -1885,6 +1906,9 @@ exports.Paymentline = Backbone.Model.extend({
             return;
         }
         this.cashregister = options.cashregister;
+        if (this.cashregister === undefined) {
+            throw new Error(_t('Please configure a payment method in your POS.'));
+        }
         this.name = this.cashregister.journal_id[1];
     },
     init_from_JSON: function(json){
@@ -1939,8 +1963,8 @@ var PaymentlineCollection = Backbone.Collection.extend({
     model: exports.Paymentline,
 });
 
-// An order more or less represents the content of a client's shopping cart (the OrderLines) 
-// plus the associated payment information (the Paymentlines) 
+// An order more or less represents the content of a client's shopping cart (the OrderLines)
+// plus the associated payment information (the Paymentlines)
 // there is always an active ('selected') order in the Pos, a new one is created
 // automaticaly once an order is completed and sent to the server.
 exports.Order = Backbone.Model.extend({
@@ -1962,6 +1986,7 @@ exports.Order = Backbone.Model.extend({
         this.pos_session_id = this.pos.pos_session.id;
         this.finalized      = false; // if true, cannot be modified.
         this.set_pricelist(this.pos.default_pricelist);
+        this.invoiceData     = {};
 
         this.set({ client: null });
 
@@ -2036,7 +2061,7 @@ exports.Order = Backbone.Model.extend({
         if (json.partner_id) {
             client = this.pos.db.get_partner_by_id(json.partner_id);
             if (!client) {
-                console.error('ERROR: trying to load a parner not available in the pos');
+                console.error('ERROR: trying to load a partner not available in the pos');
             }
         } else {
             client = null;
@@ -2075,7 +2100,7 @@ exports.Order = Backbone.Model.extend({
         }, this));
         return {
             name: this.get_name(),
-            amount_paid: this.get_total_paid(),
+            amount_paid: this.get_total_paid() - this.get_change(),
             amount_total: this.get_total_with_tax(),
             amount_tax: this.get_total_tax(),
             amount_return: this.get_change(),
@@ -2119,7 +2144,7 @@ exports.Order = Backbone.Model.extend({
             } else {
                 subreceipt = subreceipt.split('\n').slice(1).join('\n');
                 var qweb = new QWeb2.Engine();
-                    qweb.debug = core.debug;
+                    qweb.debug = config.debug;
                     qweb.default_dict = _.clone(QWeb.default_dict);
                     qweb.add_template('<templates><t t-name="subreceipt">'+subreceipt+'</t></templates>');
 
@@ -2212,6 +2237,17 @@ exports.Order = Backbone.Model.extend({
     get_name: function() {
         return this.name;
     },
+
+    // Set invoicedata to order
+    set_invoiceData: function(invoiceData) {
+        // yyyy-mm-dd  -> dd/mm/yyyy
+        invoiceData.fec_lemision = invoiceData.fec_lemision.split('-').reverse().join('/')
+        this.invoiceData = invoiceData;
+    },
+    // Get invoicedata to order
+    get_invoiceData: function() {
+        return  this.invoiceData;
+    },
     assert_editable: function() {
         if (this.finalized) {
             throw new Error('Finalized Order cannot be modified');
@@ -2257,7 +2293,7 @@ exports.Order = Backbone.Model.extend({
         }
     },
 
-    initialize_validation_date: function () {
+    initialize_validation_date: function ( date ) {
         this.validation_date = new Date();
         this.formatted_validation_date = field_utils.format.datetime(
             moment(this.validation_date), {}, {timezone: false});

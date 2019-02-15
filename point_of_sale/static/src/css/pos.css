@@ -110,6 +110,7 @@ td {
 }
 
 .pos {
+    direction: ltr;
     padding: 0;
     margin: 0;
     background-color: #f0eeee;
@@ -208,7 +209,7 @@ td {
 }
 /* firefox seems to ignore the relative positionning of the subwindow-container
  * putting this inside subwindow-container fixes it.
- */ 
+ */
 .pos .subwindow .subwindow-container-fix{
     height: 100%;
     position: relative;
@@ -335,7 +336,7 @@ td {
     margin-left: 7px;
     margin-top: 2px;
     vertical-align:middle;
-} 
+}
 .pos .pos-branding .username{
     float:right;
     color:#DDD;
@@ -436,8 +437,6 @@ td {
     display: flex;
     -webkit-flex: 1;
     flex: 1;
-    max-width: -moz-available;
-    max-width: -webkit-fill-available;
 }
 .pos .orders {
     display: -webkit-flex;
@@ -483,7 +482,7 @@ td {
 /*  c) The notifications indicator */
 
 .pos .oe_status{
-    float:right; 
+    float:right;
     color: rgba(255,255,255,0.4);
     padding: 14px;
     line-height: 20px;
@@ -604,7 +603,7 @@ td {
 .pos .control-button.highlight,
 .pos .button.highlight {
     background: #6EC89B !important;
-    border: solid 1px #64AF8A !important; 
+    border: solid 1px #64AF8A !important;
     color: white !important;
 }
 .pos .control-button.altlight,
@@ -1009,7 +1008,7 @@ td {
     line-height: 14px;
     width: 100%;
     /* for some reason the -90deg orientation doesn't match the -webkit-linear-gradient. It should be 180deg here.
-     * webkit also insists on rendering *both* gradients instead of only the native one. So it doesn't looks right. ugh. 
+     * webkit also insists on rendering *both* gradients instead of only the native one. So it doesn't looks right. ugh.
     background:         linear-gradient(-90deg,rgba(255,255,255,0),rgba(255,255,255,1), rgba(255,255,255,1)); */
     /*background:#FFF;*/
     padding: 3px;
@@ -1433,6 +1432,7 @@ td {
 .pos .pos-receipt-container {
     font-size: 0.75em;
     text-align: center;
+    direction: ltr;
 }
 
 .pos .pos-sale-ticket {
@@ -1480,8 +1480,8 @@ td {
     }
     .oe_leftbar,
     .oe_loading,
-    .pos .pos-topheader, 
-    .pos .pos-leftpane, 
+    .pos .pos-topheader,
+    .pos .pos-leftpane,
     .pos .keyboard_frame,
     .pos .receipt-screen header,
     .pos .receipt-screen .top-content,
@@ -1491,9 +1491,9 @@ td {
     .pos,
     .pos .pos-content,
     .pos .rightpane,
-    .pos .screen, 
-    .pos .window, 
-    .pos .window .subwindow, 
+    .pos .screen,
+    .pos .window,
+    .pos .window .subwindow,
     .pos .subwindow .subwindow-container{
         display: block;
         position: static;
@@ -2050,7 +2050,7 @@ td {
     top: 10px;
     width: 200px;
     font-size: 10px;
-    
+
     background: rgba(0,0,0,0.82);
     color: white;
     padding-bottom: 10px;
@@ -2153,19 +2153,6 @@ td {
 .pos .popup-confirm .body {
     overflow: auto;
     height: 120px;
-}
-.pos .modal-dialog .popup-textinput{
-    display: flex;
-    flex-direction: column;
-}
-.pos .modal-dialog .popup-textinput .title,
-.pos .modal-dialog .popup-textinput .footer{
-    flex: none;
-}
-.pos .modal-dialog .popup-textinput textarea{
-    resize: none;
-    flex: auto;
-    margin: 0 20px 80px;
 }
 .pos .popup .title {
     background: rgba(255,255,255,0.5);
@@ -2301,7 +2288,7 @@ td {
     line-height: 50px;
     margin-top: -1px;
     border-top: solid 3px rgba(60,60,60,0.1);
-    
+
 }
 .pos .popup.popup-selection .selection-item {
     width: auto;
@@ -2453,3 +2440,32 @@ td {
 .pos .not-supported-browser img{
     border-collapse: separate;
 }
+
+
+.pos-sale-ticket hr{
+    border: .5px dashed;
+    margin-bottom: 5px;
+    margin-top: 5px;
+}
+
+.pos-sale-ticket .table-items > tbody > tr{
+    border-top: 1px dashed;
+}
+
+.pos-sale-ticket .table-items > tbody > tr:last-child{
+    border-bottom: 1px dashed;
+}
+
+
+.size10{font-size: 10px;}
+.size11{font-size: 11px;}
+.size12{font-size: 12px;}
+.size13{font-size: 13px;}
+.size14{font-size: 14px;}
+.size15{font-size: 15px;}
+.size16{font-size: 16px;}
+.size17{font-size: 17px;}
+.size18{font-size: 18px;}
+.size19{font-size: 19px;}
+
+.none{display: none !important;}

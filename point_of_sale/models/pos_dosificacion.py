@@ -3,11 +3,8 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
-# from odoo.tools.facturacion.cc import controlCode
-# from odoo.tools.facturacion.literal import toLiteral
-
-from .facturacion.cc import controlCode
-from .facturacion.literal import toLiteral
+from odoo.tools.facturacion.cc import controlCode
+from odoo.tools.facturacion.literal import toLiteral
 
 from datetime import datetime
 from dateutil.parser import parse
@@ -17,7 +14,7 @@ class PosDosificacion(models.Model):
     _description = "Dosificacion de facturas"
 
     # impuestos personalizacion
-    name = fields.Char('Nombre', default='algo')
+    name = fields.Char('Nombre', default='Nombre dosificación')
     nro_autorizacion = fields.Char(string="Nro Autorización")
     llave = fields.Char(string="Llave")
     fec_lemision = fields.Date(string="Fecha Limite de emisión")
