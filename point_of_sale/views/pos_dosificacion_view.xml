@@ -1,0 +1,44 @@
+<odoo>
+
+	<record id="pos_dosificacion_tree" model="ir.ui.view">
+	    <field name="name">pos.dosificacion.tree</field>
+	    <field name="model">pos.dosificacion</field>
+	    <field name="arch" type="xml">
+	        <tree string="Dosificacion">
+	            <field name="name" />
+	            <field name="nro_autorizacion" />
+	            <field name="fec_lemision" />
+	            <field name="estado" />
+	            <field name="start" />
+	            <field name="current" />
+	            <field name="next" />
+	        </tree>
+	    </field>
+	</record>
+
+
+	<record id="actwin_dosificacion" model="ir.actions.act_window">
+		<field name="name">Dosificacion</field>
+		<field name="res_model">pos.dosificacion</field>
+		<field name="view_mode">tree,form</field>
+		<field name="help" type="html">
+		<p class="oe_view_nocontent_create"> Click para agregar una nueva dosificacion. </p>
+		</field>
+	</record>
+
+
+	<menuitem id="menu_pos_dosificacion"
+        name="Dosificacion"
+        parent="menu_point_root"
+        sequence="90"
+        groups="group_pos_manager"/>
+
+
+	<menuitem
+		id="menu_dosificacion"
+		name="Dosificacion"
+		action="actwin_dosificacion"
+		parent="menu_pos_dosificacion"
+		sequence="20"/>
+
+</odoo>
